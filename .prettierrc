@@ -1,0 +1,18 @@
+{
+  "plugins": [
+    "prettier-plugin-sort-json",
+    "prettier-plugin-packagejson",
+    "prettier-plugin-multiline-arrays",
+    "prettier-plugin-organize-imports",
+    "prettier-plugin-jsdoc"
+  ],
+  "semi": true,
+  "trailingComma": "all",
+  "singleQuote": false,
+  "printWidth": 600,
+  "endOfLine": "lf",
+  "arrowParens": "always",
+  "multilineArrayWrapThreshold": 50,
+  "bracketSameLine": true,
+  "tabWidth": 4
+}

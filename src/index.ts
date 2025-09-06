@@ -2,21 +2,23 @@
 
 import "module-alias/register";
 import dotenv from "dotenv";
-
-dotenv.config();
-
 import Koa from "koa";
 import Router from "koa-router";
 import bodyParser from "koa-bodyparser";
 
 import {log} from "@utils/Logger";
 import axios from "axios";
-import {classificacoesDfi, updateClassificacaoDfi} from "@utils/DfiUtils";
+import {atualizarStatusMaquina, classificacoesDfi, motivosDeParada} from "@utils/DfiUtils";
+
+dotenv.config();
 
 const app = new Koa();
 const router = new Router();
 
 type classificacaoDfiType = { status: 0 | 1, estabelecimento: string, recurso: string, fake: boolean, timeOut: number }
+
+// Objeto para armazenar os timeouts agendados por recurso
+const timeoutsAgendados: { [recurso: string]: NodeJS.Timeout } = {};
 
 // GET: classification of machines
 router.get("/proxy/integracao-metris/v1/teste/classificacao-maquina", async (ctx) => {
@@ -31,7 +33,7 @@ router.get("/proxy/integracao-metris/v1/teste/classificacao-maquina", async (ctx
     ctx.body = classificacoesDfi;
 });
 
-// POST: atualizar status da máquina
+// POST: aqui faremos a mágica (VERSÃO CORRIGIDA)
 router.post("/proxy/integracao-metris/v1/teste/status-maquina", async (ctx) => {
     const {status, estabelecimento, recurso, fake, timeOut} = ctx.request.body as classificacaoDfiType;
 
@@ -41,16 +43,69 @@ router.post("/proxy/integracao-metris/v1/teste/status-maquina", async (ctx) => {
         return;
     }
 
-    // Atualiza status da máquina
-    updateClassificacaoDfi(recurso, status);
+    // --- LÓGICA CORRIGIDA ---
+
+    // 1. CANCELA QUALQUER TIMEOUT PENDENTE PARA ESTA MÁQUINA
+    // Isso evita o problema de um agendamento antigo sobrescrever um novo estado.
+    if (timeoutsAgendados[recurso]) {
+        clearTimeout(timeoutsAgendados[recurso]);
+        log('info', `[SISTEMA] Timeout anterior para ${recurso} foi cancelado.`);
+        delete timeoutsAgendados[recurso];
+    }
+
+    // 2. AVALIA O NOVO STATUS
+    if (status === 0) {
+        // A máquina vai para o estado "Aguardando Classificação" imediatamente.
+        log('info', `[SISTEMA] Colocando ${recurso} em estado de parada (aguardando classificação).`);
+        atualizarStatusMaquina(recurso, {
+            status: 0,
+            aguardandoClassificacao: true,
+            // Limpa dados antigos de classificação para um estado "limpo"
+            codigo: undefined,
+            descricao: undefined,
+            corStatus: undefined,
+        });
+
+        // Se um timeOut foi informado, agenda a classificação automática.
+        if (timeOut && timeOut > 0) {
+            log('info', `[SIMULAÇÃO] Agendando classificação para ${recurso} em ${timeOut} segundos.`);
+
+            timeoutsAgendados[recurso] = setTimeout(() => {
+                log('info', `[SIMULAÇÃO] Timeout de ${timeOut}s para ${recurso} finalizado. Classificando...`);
+
+                const indiceAleatorio = Math.floor(Math.random() * motivosDeParada.length);
+                const motivoEscolhido = motivosDeParada[indiceAleatorio];
+
+                const classificacaoFinal = {
+                    aguardandoClassificacao: false,
+                    codigo: motivoEscolhido.codigo,
+                    descricao: motivoEscolhido.descricao,
+                    corStatus: motivoEscolhido.corStatus
+                };
+
+                atualizarStatusMaquina(recurso, classificacaoFinal);
+                delete timeoutsAgendados[recurso]; // Limpa o timeout após a execução
+
+            }, timeOut * 1000);
+        }
+
+    } else if (status === 1) {
+        // Lógica para ligar a máquina (já estava correta)
+        log('info', `[SISTEMA] Ligando a máquina ${recurso}.`);
+        atualizarStatusMaquina(recurso, {
+            status: 1,
+            codigo: 8,
+            descricao: "Maquina Produzindo",
+            aguardandoClassificacao: false,
+            corStatus: "#007C38"
+        });
+    }
 
     ctx.body = {
-        message: "Status atualizado com sucesso",
+        message: "Status recebido e processo atualizado com sucesso",
         recurso,
-        novoStatus: status,
-        fake,
-        timeOut,
-        estabelecimento
+        status,
+        timeOut
     };
 });
 
