@@ -22,7 +22,7 @@ export let classificacoesDfi = [
         recurso: "LOOM02",
         status: 1,
         codigo: 8,
-        descricao: "Maquina Produzindo",
+        descricao: "MÁQUINA OPERANDO",
         aguardandoClassificacao: false,
         corStatus: "#007C38"
     },

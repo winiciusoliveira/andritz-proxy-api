@@ -43,21 +43,20 @@ router.post("/proxy/integracao-metris/v1/teste/status-maquina", async (ctx) => {
         return;
     }
 
-    // --- LÓGICA CORRIGIDA ---
 
     // 1. CANCELA QUALQUER TIMEOUT PENDENTE PARA ESTA MÁQUINA
     // Isso evita o problema de um agendamento antigo sobrescrever um novo estado.
-    if (timeoutsAgendados[recurso]) {
-        clearTimeout(timeoutsAgendados[recurso]);
-        log('info', `[SISTEMA] Timeout anterior para ${recurso} foi cancelado.`);
-        delete timeoutsAgendados[recurso];
+    if (timeoutsAgendados[recurso.toUpperCase()]) {
+        clearTimeout(timeoutsAgendados[recurso.toUpperCase()]);
+        log('info', `[SISTEMA] Timeout anterior para ${recurso.toUpperCase()} foi cancelado.`);
+        delete timeoutsAgendados[recurso.toUpperCase()];
     }
 
     // 2. AVALIA O NOVO STATUS
     if (status === 0) {
         // A máquina vai para o estado "Aguardando Classificação" imediatamente.
-        log('info', `[SISTEMA] Colocando ${recurso} em estado de parada (aguardando classificação).`);
-        atualizarStatusMaquina(recurso, {
+        log('info', `[SISTEMA] Colocando ${recurso.toUpperCase()} em estado de parada (aguardando classificação).`);
+        atualizarStatusMaquina(recurso.toUpperCase(), {
             status: 0,
             aguardandoClassificacao: true,
             // Limpa dados antigos de classificação para um estado "limpo"
@@ -68,9 +67,9 @@ router.post("/proxy/integracao-metris/v1/teste/status-maquina", async (ctx) => {
 
         // Se um timeOut foi informado, agenda a classificação automática.
         if (timeOut && timeOut > 0) {
-            log('info', `[SIMULAÇÃO] Agendando classificação para ${recurso} em ${timeOut} segundos.`);
+            log('info', `[SIMULAÇÃO] Agendando classificação para ${recurso.toUpperCase()} em ${timeOut} segundos.`);
 
-            timeoutsAgendados[recurso] = setTimeout(() => {
+            timeoutsAgendados[recurso.toUpperCase()] = setTimeout(() => {
                 log('info', `[SIMULAÇÃO] Timeout de ${timeOut}s para ${recurso} finalizado. Classificando...`);
 
                 const indiceAleatorio = Math.floor(Math.random() * motivosDeParada.length);
@@ -83,19 +82,19 @@ router.post("/proxy/integracao-metris/v1/teste/status-maquina", async (ctx) => {
                     corStatus: motivoEscolhido.corStatus
                 };
 
-                atualizarStatusMaquina(recurso, classificacaoFinal);
-                delete timeoutsAgendados[recurso]; // Limpa o timeout após a execução
+                atualizarStatusMaquina(recurso.toUpperCase(), classificacaoFinal);
+                delete timeoutsAgendados[recurso.toUpperCase()]; // Limpa o timeout após a execução
 
             }, timeOut * 1000);
         }
 
     } else if (status === 1) {
         // Lógica para ligar a máquina (já estava correta)
-        log('info', `[SISTEMA] Ligando a máquina ${recurso}.`);
-        atualizarStatusMaquina(recurso, {
+        log('info', `[SISTEMA] Ligando a máquina ${recurso.toUpperCase()}.`);
+        atualizarStatusMaquina(recurso.toUpperCase(), {
             status: 1,
             codigo: 8,
-            descricao: "Maquina Produzindo",
+            descricao: "MÁQUINA OPERANDO",
             aguardandoClassificacao: false,
             corStatus: "#007C38"
         });
